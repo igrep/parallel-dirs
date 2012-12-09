@@ -1,0 +1,13 @@
+#!/bin/bash
+eval $@
+IFS_bk=$IFS
+IFS='
+'
+pwd_save=$( pwd )
+for dir in $( mrr-paths -ns $pwd_save )
+do
+	cd $dir
+	eval $@
+done
+cd $pwd_save
+IFS=$IFS_bk

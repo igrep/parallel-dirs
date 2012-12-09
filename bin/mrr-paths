@@ -1,0 +1,34 @@
+#!/usr/bin/env ruby
+# -*- coding: utf-8 -*-
+$VERBOSE = true
+=begin
+prints mirrored paths
+=end
+
+require 'optparse'
+require 'parallel_dirs'
+
+#Read Settings
+home = ENV['HOME']
+cfg_dirs = ( ENV['PARALLEL_DIRS'] || "#{home}:" + File.read( "#{ENV['HOME']}/.parallel_dirs" ).chomp ).split(':')
+get_paths = parallel_dirs( *cfg_dirs )
+
+
+#Check arguments
+fail ArgumentError, '1 or more arguments required to execute a command.' if ARGV.empty?
+
+opt = OptionParser.new
+sep = ' '
+exc_src_path = false
+opt.on('-n'){ sep = "\n" }
+opt.on('-0'){ sep = "\0" }
+opt.on('-s'){ exc_src_path = true }
+opt.parse! ARGV
+
+print ARGV.map{|spath|
+  paths = get_paths[spath]
+  #delete paths specified in ARGV if exc_src_path
+  paths.shift if exc_src_path
+  paths.join sep
+}.join( sep )
+print "\n" unless sep == "\0"

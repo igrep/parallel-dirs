@@ -1,0 +1,69 @@
+#!/usr/bin/ruby -wKu
+# vim: set fileencoding=utf-8 :
+=begin
+MoVeMirror
+ファイルの名前を変更（あるいは、同じボリューム内での移動）し、
+更に対応するディレクトリ全てのディレクトリ以下でも同じように名前の変更をする。
+
+注意：現在のバージョンでは、事前にupmrrされていることを前提としている。
+例えば、移動元のファイルが対応するディレクトリになかったり、移動先のディレクトリがなかったりすると、エラーが起こる。
+=end
+
+require 'fileutils'
+require 'parallel_dirs'
+
+#Error Handler
+def ignore_args args, err
+  warn "    #{err.class} : #{err.message}"
+  warn "Ignored #{args.inspect}."
+end
+
+#引数のチェック
+fail ArgumentError, '2 or more arguments required to move some files.' if ARGV.length < 2
+
+#環境変数を読み込む
+home = ENV['HOME']
+cfg_dirs = ( ENV['PARALLEL_DIRS'] || "#{home}:" + File.read( "#{home}/.parallel_dirs" ).chomp ).split(':')
+get_paths = parallel_dirs( *cfg_dirs )
+=begin
+[
+ [引数0,引数0に対応するパス1, ..., パスm],
+ ...
+ [引数n,引数nに対応するパス1, ..., パスm]
+]という二次元配列から行と列の入れ替え
+=end
+mirror_args = ARGV.map do|arg|
+  para_dirs = get_paths[arg]
+  if para_dirs
+    para_dirs
+  else
+    warn "WARNING: \n#{arg.inspect} is not contained either by #{ cfg_dirs.inspect }!\nSo #{arg} was ignored."
+    #nilを返す
+  end
+end.compact.transpose
+#いざ、移動
+arg_dest_is_dir = File.directory? ARGV[-1] #引数で指定した移動先
+mirror_args.each do|mv_args|
+  cur_dest = mv_args[-1] #現在移動させようとしているファイルの移動先
+  if arg_dest_is_dir
+    unless File.directory? cur_dest
+      begin
+        Dir.mkdir( cur_dest ) #移動先が存在しないディレクトリの場合、あらかじめ作る。
+      rescue SystemCallError => err
+        warn "WARN: an error occured in making a directory '#{cur_dest}'."
+        ignore_args( mv_args, err )
+        next
+      end
+    end
+    src = mv_args[0..-2] #移動先がディレクトリの場合、移動元は配列として扱う
+  else
+    src = mv_args[0]
+  end
+  begin
+    FileUtils.mv( src, cur_dest )
+  rescue SystemCallError => err
+    warn "WARN: an error occured in moving #{src.inspect} to #{cur_dest}."
+    ignore_args( mv_args, err )
+    next
+  end
+end

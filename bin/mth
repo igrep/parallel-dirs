@@ -1,0 +1,42 @@
+#!/usr/bin/env ruby
+# vim: set fileencoding=utf-8 :
+$VERBOSE = true
+=begin
+Mirror thunar
+=end
+require 'parallel_dirs'
+require 'optparse'
+
+file_manager = 'thunar'
+
+#環境変数を読み込む
+home = ENV['HOME']
+cfg_dirs = ( ENV['PARALLEL_DIRS'] || "#{home}:" + File.read( "#{home}/.parallel_dirs" ).chomp ).split(':')
+get_paths = parallel_dirs( *cfg_dirs )
+
+o = OptionParser.new( "#{$0}: [OPTIONS] [DIRECTORIES_UNDER_PARALLEL_DIRS...]")
+exc_src_path = false
+begin
+  o.on('-s', '--exclude-source-path',  'NOT open the path specified in the command line.'){|v| exc_src_path = v}
+  o.order!(ARGV)
+rescue OptionParser::ParseError
+  fail  "#$0: unrecognized option found. See '#$0 --help' for the available options."
+end
+
+args = ARGV.empty? ? [ Dir.pwd ] : ARGV
+
+=begin
+ [ 引数0,引数0に対応するパス1, ..., 引数0に対応するパスm,
+   ...  引数n,引数nに対応するパス1, ..., パスm ]
+=end
+mirror_args = args.map do|arg|
+  para_dirs = get_paths[arg]
+  if para_dirs
+    exc_src_path ? para_dirs[1..-1] : para_dirs
+  else
+    warn "WARNING: \n#{arg.inspect} is not contained either by #{ cfg_dirs.inspect }!\nSo #{arg} was ignored."
+    #nilを返す
+  end
+end.flatten
+
+exec( file_manager, *mirror_args )

@@ -1,0 +1,32 @@
+#!/usr/bin/ruby -wKu
+# vim: set fileencoding=utf-8 :
+=begin
+Mirror ReMove
+=end
+
+require 'fileutils'
+require 'parallel_dirs'
+
+#引数のチェック
+fail ArgumentError, '1 or more arguments required to remove files.' if ARGV.empty?
+
+#環境変数を読み込む
+home = ENV['HOME']
+cfg_dirs = ( ENV['PARALLEL_DIRS'] || "#{home}:" + File.read( "#{ENV['HOME']}/.parallel_dirs" ).chomp ).split(':')
+get_paths = parallel_dirs( *cfg_dirs )
+=begin
+ [ 引数0,引数0に対応するパス1, ..., 引数0に対応するパスm,
+   ...  引数n,引数nに対応するパス1, ..., パスm ]
+=end
+mirror_args = ARGV.map do|arg|
+  para_dirs = get_paths[arg]
+  if para_dirs
+    para_dirs
+  else
+    warn "WARNING: \n#{arg.inspect} is not contained either by #{ cfg_dirs.inspect }!\nSo #{arg} was ignored."
+    #nilを返す
+  end
+end.flatten
+#いざ、削除
+#FileUtils.rm_r mirror_args, :noop => true, :verbose => true
+FileUtils.rm_r mirror_args
