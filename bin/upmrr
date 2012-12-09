@@ -1,0 +1,85 @@
+#!/usr/bin/ruby
+# -*- coding: utf-8 -*-
+$VERBOSE = true
+
+$KCODE = 'u' if RUBY_VERSION < '1.9'
+
+=begin
+####rsyncの自分用ラッパ####
+=end
+
+require 'parallel_dirs'
+
+#####設定項目#####
+#同期の対象とするディレクトリ名の配列。引数に、この中に含まれていないパスを指定すると、
+#この中の全てのパスが同期先となる
+#また、***末尾にディレクトリの区切り文字を入れてはいけない。***
+
+#環境変数を読み込む
+home = ENV['HOME']
+dirs_colon ||= ENV['PARALLEL_DIRS'] || "#{home}:" + File.read( "#{home}/.parallel_dirs" ).chomp
+cfg_dirs = dirs_colon .split(':')
+SYNC_ER = 'rsync' #同期に用いるコマンド。特にシェルのメタキャラクタをエスケープする必要はない
+fail_if_arg_is_root = true #引数がcfg_dirsと等値である場合終了する
+
+#####設定と引数のチェック#####
+dash = '-'
+dashdash = '--'
+sync_opts = []
+dashdash_idx = ARGV.find_index( dashdash )
+if dashdash_idx.nil? #ARGV doesn't include dashdash
+  args_with_opts = ARGV
+  args_left = []
+else
+  args_with_opts = ARGV[ 0...dashdash_idx ]
+  args_left = ARGV[ ( dashdash_idx + 1 )..-1 ]
+end
+sync_opts, args_without_opts =
+  args_with_opts.partition{|path| path.start_with? dash }
+args_without_opts.concat args_left
+spaths = if args_without_opts.empty? then [ Dir.pwd ] else args_without_opts end
+get_paths = parallel_dirs( *cfg_dirs )
+
+#実行前にチェックする
+#continue = system 'zenity', '--question', "--text=次のファイルを同期しますか?\n#{spaths.join "\n"}"
+#exit unless continue
+
+spaths.each do| spath | #spath: source path
+  #Patched argument check.
+  if fail_if_arg_is_root && cfg_dirs.include?( File.expand_path( spath ) )
+    warn "WARNING: #{spath} is one of the root directories! It's dangerous to rsync! #{spath} is ignored."
+    next
+  end
+
+  begin
+    spath_stat = File.stat(spath)
+  rescue SystemCallError => err
+    warn "WARNING: Can't access to #{spath} ( Error: #{err.errno} )! So #{spath} was ignored."
+    next
+  end
+
+  paths = get_paths[ spath ]
+  if paths.nil?
+    warn "WARNING: \n#{spath} is not contained either by #{ cfg_dirs.inspect }!\nSo #{spath} was ignored."
+    next
+  end
+
+  ####パス名とオプションの組み立て####
+  dpaths = paths[ 1..-1 ] #配列の最初の要素は「引数で指定したファイルを含むルート」なので。
+  #abs_spathがディレクトリなら末尾に区切り文字があることを保証する（rsyncの特徴上）
+  spath_m = if spath_stat.directory?
+    if spath.end_with?( File::SEPARATOR )
+      spath
+    else
+      spath + File::SEPARATOR #spath_m: spath modified
+    end
+  else
+    spath
+  end
+  ####コマンドライン引数の設定とrsyncの実行####
+  dpaths.each do|dp|
+    puts "Executing: system #{SYNC_ER}, #{sync_opts.inspect}, #{spath_m}, #{dp}"
+    sync_args = sync_opts + [ spath_m, dp ]
+    system( SYNC_ER, *sync_args )
+  end
+end
