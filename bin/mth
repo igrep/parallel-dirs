@@ -4,6 +4,11 @@ $VERBOSE = true
 =begin
 Mirror thunar
 =end
+$LOAD_PATH.unshift(
+  File.expand_path File.join(
+    File.dirname( __FILE__ ), 'lib'
+  )
+)
 require 'parallel_dirs'
 require 'optparse'
 

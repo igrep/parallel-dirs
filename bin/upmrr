@@ -8,6 +8,12 @@ $KCODE = 'u' if RUBY_VERSION < '1.9'
 ####rsyncの自分用ラッパ####
 =end
 
+$LOAD_PATH.unshift(
+  File.expand_path File.join(
+    File.dirname( __FILE__ ), 'lib'
+  )
+)
+
 require 'parallel_dirs'
 
 #####設定項目#####

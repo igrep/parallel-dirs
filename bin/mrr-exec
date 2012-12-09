@@ -1,4 +1,7 @@
 #!/bin/bash
+# 使うときは
+#  1. mrr-pathsをPATHに置く。
+#  2. 普通に実行するのではなくsource mrr-execとする。
 eval $@
 IFS_bk=$IFS
 IFS='

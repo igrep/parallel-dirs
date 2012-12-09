@@ -8,6 +8,11 @@ MoVeMirror
 注意：現在のバージョンでは、事前にupmrrされていることを前提としている。
 例えば、移動元のファイルが対応するディレクトリになかったり、移動先のディレクトリがなかったりすると、エラーが起こる。
 =end
+$LOAD_PATH.unshift(
+  File.expand_path File.join(
+    File.dirname( __FILE__ ), 'lib'
+  )
+)
 
 require 'fileutils'
 require 'parallel_dirs'
